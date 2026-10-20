@@ -2,7 +2,7 @@
 
 **コピーヘッドは、本体の容量を出力層と取り合う：小規模言語モデルでの副作用の発見と、2つの簡単な対策**
 
-> Status: preliminary results (small scale, 2 seeds, one dataset). Feedback welcome.
+> Status: preliminary results (small scale, 2 seeds). Includes a negative follow-up on a speedrun-style recipe. Feedback welcome.
 > 状態：予備的な結果です（小規模・2シード・1データセット）。
 
 ---
@@ -20,7 +20,7 @@ We propose two simple changes that reduce this competition:
 
 Together they improve over a simple pointer-mixture copy head by **+0.027** nats and over our re-implementation of the Copy-Paste LM design by **+0.053** nats (2 seeds, both positive), at no extra inference cost. Applied on top of the Copy-Paste LM design they give **+0.036** nats on both seeds.
 
-コピーヘッド（文中の単語を出力に直接写す仕組み）は、2026年10月の Copy-Paste LM で事前学習を改善すると報告されました。私は小さいモデルで、**コピーヘッドを入れると、文中に無い新しい単語の予測が悪化する**ことを見つけました。原因は、コピーと普通の出力層が本体の容量を取り合うことだと考え、2つの簡単な工夫（普通の出力層の損失の追加、照合を途中の層から行う）で改善しました。
+コピーヘッド（文中の単語を出力に直接写す仕組み）は、2026年10月の Copy-Paste LM で事前学習を改善すると報告されました。私たちは小さいモデルで、**コピーヘッドを入れると、文中に無い新しい単語の予測が悪化する**ことを見つけました。原因は、コピーと普通の出力層が本体の容量を取り合うことだと考え、2つの簡単な工夫（普通の出力層の損失の追加、照合を途中の層から行う）で改善しました。
 
 ---
 
@@ -82,7 +82,33 @@ Paired differences (same seed):
 4. **Reducing competition helps**: the auxiliary LM loss and mid-layer copy keys each give ~+0.013–0.014, together ~+0.027 over `ptr`, and the effect transfers to the `cplm` design (+0.036).
 5. **Copy-head distillation does not work**: using the copy head only during training and removing it afterwards (a "scaffold") leaves no benefit in the plain Transformer — the gain lives entirely in the extra output path.
 
+## Follow-up: on top of a scaled-down speedrun recipe（追加実験：縮小版speedrunの上で）
+
+We re-implemented the main ingredients of the modded-nanoGPT speedrun at a Colab-friendly size (6 layers, d=384, ~10M non-embedding params; Muon for matrices, value embeddings, U-Net skips, x0 mixing, logit softcap 15, RoPE, QK-norm, ReLU², trapezoidal LR) and trained on the speedrun's FineWeb tokens (1500 steps, 16 × 512 tokens per step).
+
+縮小版speedrun（6層・384次元）をFineWebで学習し、コピーヘッドと私たちの改良を載せました。
+
+Validation NLL (FineWeb):
+
+| Method | seed 0 | seed 1 | train time (1500 steps) |
+|---|---|---|---|
+| speedrun-mini (no copy) | 5.215 | – | 557 s |
+| + copy head (`ptr`) | 4.849 | 4.829 | 563 s |
+| + copy head + ours (`ours`) | 4.827 | 4.834 | 564 s |
+
+Paired `ptr − ours` during training:
+
+| step | 250 | 500 | 750 | 1000 | 1250 | 1500 |
+|---|---|---|---|---|---|---|
+| seed 0 | +0.018 | +0.024 | +0.022 | +0.026 | +0.026 | +0.022 |
+| seed 1 | +0.015 | +0.025 | +0.021 | +0.012 | +0.003 | −0.006 |
+
+- **The copy head transfers strongly**: −0.37 nats vs. the speedrun-mini baseline, reaching the baseline's final loss in roughly half the steps, with ~1% extra wall-clock. コピーヘッドは最強のレシピの上でも大きく効き、ほぼ2倍速（時間の増加は約1%）。
+- **Our two changes help early but not reliably at the end**: both seeds are ahead by ~0.02 up to step 750, but the final advantage is +0.022 / −0.006 (mean +0.008). This is consistent with the capacity-competition interpretation: the competition is strongest when the model is small or undertrained and fades as it grows. 私たちの改良は序盤は両シードで勝つが、最終的には確定せず。
+
 ## Limitations（限界）
+
+- **The effect of our changes shrinks with scale/training**: on the speedrun-mini setup (3× larger than the main setup) the final-loss gain is not reliable (see above). Our changes should be viewed as a fix for small or early-stage models, not a general improvement. 規模や学習量が増えると、改良の効果は縮みます。
 
 - **Scale**: ~3M non-embedding parameters. Copy-Paste LM (135M–1.7B) reports no degradation on non-copied tokens; the capacity competition we observe may shrink or vanish at larger scale. This is the most important open question.
 - **Seeds and data**: 2 seeds, one dataset, 1500 steps.
