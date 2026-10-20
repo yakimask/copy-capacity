@@ -20,7 +20,7 @@ We propose two simple changes that reduce this competition:
 
 Together they improve over a simple pointer-mixture copy head by **+0.027** nats and over our re-implementation of the Copy-Paste LM design by **+0.053** nats (2 seeds, both positive), at no extra inference cost. Applied on top of the Copy-Paste LM design they give **+0.036** nats on both seeds.
 
-コピーヘッド（文中の単語を出力に直接写す仕組み）は、2026年10月の Copy-Paste LM で事前学習を改善すると報告されました。私たちは小さいモデルで、**コピーヘッドを入れると、文中に無い新しい単語の予測が悪化する**ことを見つけました。原因は、コピーと普通の出力層が本体の容量を取り合うことだと考え、2つの簡単な工夫（普通の出力層の損失の追加、照合を途中の層から行う）で改善しました。
+コピーヘッド（文中の単語を出力に直接写す仕組み）は、2026年10月の Copy-Paste LM で事前学習を改善すると報告されました。私は小さいモデルで、**コピーヘッドを入れると、文中に無い新しい単語の予測が悪化する**ことを見つけました。原因は、コピーと普通の出力層が本体の容量を取り合うことだと考え、2つの簡単な工夫（普通の出力層の損失の追加、照合を途中の層から行う）で改善しました。
 
 ---
 
